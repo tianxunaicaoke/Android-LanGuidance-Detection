@@ -4,15 +4,18 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.widget.Toast;
+import android.view.SurfaceHolder;
 
-import javax.inject.Inject;
+import java.util.Arrays;
 
 public class CameraService {
     private final String cameraId;
@@ -21,26 +24,22 @@ public class CameraService {
     private CameraDevice mCameraDevice;
     private @CameraInitState
     int cameraInitState;
+    private HandlerThread cameraBackGroundHandlerThread;
+    private Handler cameraBackGroundHandler;
+    private CameraCaptureSession cameraCaptureSession;
 
-    @Inject
-    public CameraService(Context context) {
+    CameraService(Context context) {
         this.context = context;
         cameraId = Integer.toString(CameraCharacteristics.LENS_FACING_FRONT);
         cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+        initBackGroundHandler();
     }
 
     /**
      * @return CameraInitState.SUCCESS if openCamera is ok
      */
-    public int openCamera(Handler handler) {
+    public int openCamera(final SurfaceHolder surfaceHolder) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return CameraInitState.FAIL;
         }
         try {
@@ -48,8 +47,8 @@ public class CameraService {
                 @Override
                 public void onOpened(@NonNull CameraDevice cameraDevice) {
                     cameraInitState = CameraInitState.SUCCESS;
-                    Toast.makeText(context,"",Toast.LENGTH_LONG);
                     mCameraDevice = cameraDevice;
+                    createCameraCaptureSession(surfaceHolder);
                 }
 
                 @Override
@@ -65,7 +64,7 @@ public class CameraService {
                     mCameraDevice = null;
                     cameraInitState = CameraInitState.FAIL;
                 }
-            }, handler);
+            }, cameraBackGroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -78,5 +77,45 @@ public class CameraService {
     public @CameraInitState
     int getCameraInitState() {
         return cameraInitState;
+    }
+
+    private void initBackGroundHandler() {
+        cameraBackGroundHandlerThread = new HandlerThread("CameraBackground");
+        cameraBackGroundHandlerThread.start();
+        cameraBackGroundHandler = new Handler(cameraBackGroundHandlerThread.getLooper());
+    }
+
+    public void createCameraCaptureSession(SurfaceHolder surfaceHolder) {
+        try {
+            final CaptureRequest.Builder mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            mPreviewRequestBuilder.addTarget(surfaceHolder.getSurface());
+            mCameraDevice.createCaptureSession(Arrays.asList(surfaceHolder.getSurface()),
+                    new CameraCaptureSession.StateCallback() {
+
+                        @Override
+                        public void onConfigured(@NonNull CameraCaptureSession mCameraCaptureSession) {
+                            if (null == mCameraDevice) {
+                                return;
+                            }
+                            cameraCaptureSession = mCameraCaptureSession;
+                            try {
+                                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                CaptureRequest mPreviewRequest = mPreviewRequestBuilder.build();
+                                cameraCaptureSession.setRepeatingRequest(mPreviewRequest,
+                                        null, cameraBackGroundHandler);
+                            } catch (CameraAccessException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        @Override
+                        public void onConfigureFailed(
+                                @NonNull CameraCaptureSession cameraCaptureSession) {
+                        }
+                    }, null);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
     }
 }

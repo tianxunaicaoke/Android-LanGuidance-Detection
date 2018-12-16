@@ -11,7 +11,7 @@ import static com.example.camera.CameraInitState.SUCCESS;
 
 @IntDef({INIT, SUCCESS, FAIL})
 @Retention(RetentionPolicy.SOURCE)
-@interface CameraInitState {
+public @interface CameraInitState {
      int INIT = 0;
      int SUCCESS =1;
      int FAIL = 2;

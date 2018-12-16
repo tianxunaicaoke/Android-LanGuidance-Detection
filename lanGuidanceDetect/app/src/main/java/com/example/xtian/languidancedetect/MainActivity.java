@@ -2,6 +2,8 @@ package com.example.xtian.languidancedetect;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.widget.TextView;
 
 import com.example.camera.CameraService;
@@ -16,16 +18,39 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Inject CameraService cameraService;
+    SurfaceHolder surfaceHolder;
+    SurfaceView surfaceView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        CameraComponent.Builder cameraComponent = DaggerCameraComponent
+                .builder()
+                .context(this);
+        cameraComponent.build().inject(this);
         // Example of a call to a native method
         TextView tv = (TextView) findViewById(R.id.sample_text);
         tv.setText(stringFromJNI());
-        cameraService.openCamera();
+        surfaceView = (SurfaceView)findViewById(R.id.surfaceView);
+        surfaceHolder = surfaceView.getHolder();
+        surfaceHolder.addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                cameraService.openCamera(holder);
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+
+            }
+        });
     }
 
     /**
