@@ -28,7 +28,7 @@ public class CameraService {
     private Handler cameraBackGroundHandler;
     private CameraCaptureSession cameraCaptureSession;
 
-    CameraService(Context context) {
+    public CameraService(Context context) {
         this.context = context;
         cameraId = Integer.toString(CameraCharacteristics.LENS_FACING_FRONT);
         cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
