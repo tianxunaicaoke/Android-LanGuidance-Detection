@@ -1,3 +1,4 @@
 dependencies {
     implementation project(':camera')
+    implementation project(path: ':opencv')
 }

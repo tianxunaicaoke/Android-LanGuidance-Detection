@@ -1,1 +1,1 @@
-include ':app', ':camera', ':voice'
+include ':app', ':camera', ':voice', ':opencv'
